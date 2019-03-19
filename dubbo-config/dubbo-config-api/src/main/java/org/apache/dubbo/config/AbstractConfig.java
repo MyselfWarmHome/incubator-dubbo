@@ -44,12 +44,17 @@ import java.util.stream.Collectors;
 /**
  * Utility methods and public methods for parsing configuration
  *
+ *  主要提供配置解析与校验相关的工具方法
+ *
  * @export
  */
 public abstract class AbstractConfig implements Serializable {
 
     protected static final Logger logger = LoggerFactory.getLogger(AbstractConfig.class);
     private static final long serialVersionUID = 4267533505537413570L;
+
+
+    // ========== 属性值的格式校验，本类的 `#checkXXX` 方法 BEGIN ==========
 
     /**
      * The maximum length of a <b>parameter's value</b>
@@ -91,16 +96,23 @@ public abstract class AbstractConfig implements Serializable {
      */
     private static final Pattern PATTERN_KEY = Pattern.compile("[*,\\-._0-9a-zA-Z]+");
 
+    // ========== 属性值的格式校验，本类的 `#checkXXX` 方法 END ==========
+
+
     /**
      * The legacy properties container
      */
     private static final Map<String, String> legacyProperties = new HashMap<String, String>();
 
     /**
-     * The suffix container
+     * 配置类名的后缀
+     * 例如，ServiceConfig 后缀为 Config；ServiceBean 后缀为 Bean。
      */
     private static final String[] SUFFIXES = new String[]{"Config", "Bean"};
 
+    /**
+     * XML或者配置文件中的一些配置标签
+     */
     static {
         legacyProperties.put("dubbo.protocol.name", "dubbo.service.protocol");
         legacyProperties.put("dubbo.protocol.host", "dubbo.service.server.host");
@@ -116,8 +128,10 @@ public abstract class AbstractConfig implements Serializable {
     }
 
     /**
-     * The config id
-     */
+     * 配置对象的编号，适用于除了 API 配置之外的三种配置方式，标记一个配置对象，
+     * 可用于对象之间的引用。例如 XML 的 <dubbo:service provider="${PROVIDER_ID}"> ，
+     * 其中 provider 为 <dubbo:provider> 的 ID 属性。
+    */
     protected String id;
     protected String prefix;
 
