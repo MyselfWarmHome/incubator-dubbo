@@ -161,6 +161,17 @@ public abstract class AbstractConfig implements Serializable {
         appendParameters(parameters, config, null);
     }
 
+    /**
+     * @Description 将配置对象的属性，添加到参数集合
+     *              所有配置最终都将转换为 Dubbo URL 表示，并由服务提供方生成，经注册中心传递给消费方，各属性对应 URL 的参数
+     *              该方法将配置的参数加入到URL类中的parameters的属性中
+     * @Author      panda
+     * @param       parameters
+     * @param       config
+     * @param       prefix
+     * @Date        2019/3/19 16:41
+     * @return      void
+     **/
     @SuppressWarnings("unchecked")
     protected static void appendParameters(Map<String, String> parameters, Object config, String prefix) {
         if (config == null) {
@@ -170,17 +181,22 @@ public abstract class AbstractConfig implements Serializable {
         for (Method method : methods) {
             try {
                 String name = method.getName();
+                //方法必须为获取基本类型 public get类型的方法
                 if (ClassHelper.isGetter(method)) {
                     Parameter parameter = method.getAnnotation(Parameter.class);
+                    //返回值类型为 Object 或排除( `@Parameter.exclue=true` )的配置项，跳过
                     if (method.getReturnType() == Object.class || parameter != null && parameter.excluded()) {
                         continue;
                     }
-                    String key;
+                    String key; //获取属性名
                     if (parameter != null && parameter.key().length() > 0) {
                         key = parameter.key();
                     } else {
+                        //跟据方法名获取属性名
                         key = calculatePropertyFromGetter(name);
                     }
+
+                    // 获得属性值
                     Object value = method.invoke(config);
                     String str = String.valueOf(value).trim();
                     if (value != null && str.length() > 0) {
@@ -201,14 +217,19 @@ public abstract class AbstractConfig implements Serializable {
                             key = prefix + "." + key;
                         }
                         parameters.put(key, str);
-                    } else if (parameter != null && parameter.required()) {
+                    }
+                    //校验配置项不为空,若为空抛出异常
+                    else if (parameter != null && parameter.required()) {
                         throw new IllegalStateException(config.getClass().getSimpleName() + "." + key + " == null");
                     }
                 } else if ("getParameters".equals(name)
                         && Modifier.isPublic(method.getModifiers())
                         && method.getParameterTypes().length == 0
                         && method.getReturnType() == Map.class) {
+                    //通过反射，获得 getParameters() 的返回值为 map
                     Map<String, String> map = (Map<String, String>) method.invoke(config, new Object[0]);
+
+                    //将 map 添加到 parameters ，kv 格式为 prefix:entry.key entry.value
                     if (CollectionUtils.isNotEmptyMap(map)) {
                         String pre = (prefix != null && prefix.length() > 0 ? prefix + "." : "");
                         for (Map.Entry<String, String> entry : map.entrySet()) {
@@ -226,6 +247,15 @@ public abstract class AbstractConfig implements Serializable {
         appendAttributes(parameters, config, null);
     }
 
+    /**
+     * @Description 将 @Parameter(attribute = true) 配置对象的属性，添加到参数集合
+     * @Author      panda
+     * @param       parameters
+     * @param       config
+     * @param       prefix
+     * @Date        2019/3/19 18:40
+     * @return      void
+     **/
     protected static void appendAttributes(Map<String, Object> parameters, Object config, String prefix) {
         if (config == null) {
             return;
@@ -238,18 +268,22 @@ public abstract class AbstractConfig implements Serializable {
                     continue;
                 }
                 String name = method.getName();
+                // 方法为获取基本类型，public的get类型的方法
                 if (ClassHelper.isGetter(method)) {
+                    // 获得对应的属性名
                     String key;
                     if (parameter.key().length() > 0) {
                         key = parameter.key();
                     } else {
                         key = calculateAttributeFromGetter(name);
                     }
+                    // 获得对应的属性值
                     Object value = method.invoke(config);
                     if (value != null) {
                         if (prefix != null && prefix.length() > 0) {
                             key = prefix + "." + key;
                         }
+                        //添加到parameters集合中
                         parameters.put(key, value);
                     }
                 }
@@ -306,6 +340,17 @@ public abstract class AbstractConfig implements Serializable {
     }
 
 
+
+    //====================================扩展属性检验START=======================================
+    /**
+     * @Description 检验配置扩展属性
+     * @Author      panda
+     * @param       type
+     * @param       property
+     * @param       value
+     * @Date        2019/3/19 16:28
+     * @return      void
+     **/
     protected static void checkExtension(Class<?> type, String property, String value) {
         checkName(property, value);
         if (StringUtils.isNotEmpty(value)
@@ -315,14 +360,16 @@ public abstract class AbstractConfig implements Serializable {
     }
 
     /**
-     * Check whether there is a <code>Extension</code> who's name (property) is <code>value</code> (special treatment is
-     * required)
-     *
-     * @param type     The Extension type
-     * @param property The extension key
-     * @param value    The Extension name
-     */
+     * @Description 使用正则表达式检验分块的扩展属性
+     * @Author      panda
+     * @param       type
+     * @param       property
+     * @param       value
+     * @Date        2019/3/19 16:29
+     * @return      void
+     **/
     protected static void checkMultiExtension(Class<?> type, String property, String value) {
+
         checkMultiName(property, value);
         if (StringUtils.isNotEmpty(value)) {
             String[] values = value.split("\\s*[,]+\\s*");
@@ -340,38 +387,109 @@ public abstract class AbstractConfig implements Serializable {
         }
     }
 
+    /**
+     * @Description 验证属性的最大长度
+     * @Author      panda
+     * @param       property
+     * @param       value
+     * @Date        2019/3/19 16:30
+     * @return      void
+     **/
     protected static void checkLength(String property, String value) {
         checkProperty(property, value, MAX_LENGTH, null);
     }
 
+    /**
+     * @Description 验证PATH路径的最大长度
+     * @Author      panda
+     * @param       property
+     * @param       value
+     * @Date        2019/3/19 16:31
+     * @return      void
+     **/
     protected static void checkPathLength(String property, String value) {
         checkProperty(property, value, MAX_PATH_LENGTH, null);
     }
 
+    /**
+     * @Description 检查属性的正则匹配
+     * @Author      panda
+     * @param       property
+     * @param       value
+     * @Date        2019/3/19 16:32
+     * @return      void
+     **/
     protected static void checkName(String property, String value) {
         checkProperty(property, value, MAX_LENGTH, PATTERN_NAME);
     }
 
+    /**
+     * @Description 检查标志属性的正则匹配
+     * @Author      panda
+     * @param       property
+     * @param       value
+     * @Date        2019/3/19 16:32
+     * @return      void
+     **/
     protected static void checkNameHasSymbol(String property, String value) {
         checkProperty(property, value, MAX_LENGTH, PATTERN_NAME_HAS_SYMBOL);
     }
 
+    /**
+     * @Description 检查Key的正则匹配
+     * @Author      panda
+     * @param       property
+     * @param       value
+     * @Date        2019/3/19 16:36
+     * @return      void
+     **/
     protected static void checkKey(String property, String value) {
         checkProperty(property, value, MAX_LENGTH, PATTERN_KEY);
     }
 
+    /**
+     * @Description 检查父节点的正则匹配
+     * @Author      panda
+     * @param       property
+     * @param       value
+     * @Date        2019/3/19 16:36
+     * @return      void
+     **/
     protected static void checkMultiName(String property, String value) {
         checkProperty(property, value, MAX_LENGTH, PATTERN_MULTI_NAME);
     }
 
+    /**
+     * @Description 检查父PATH的正则匹配
+     * @Author      panda
+     * @param       property
+     * @param       value
+     * @Date        2019/3/19 16:36
+     * @return      void
+     **/
     protected static void checkPathName(String property, String value) {
         checkProperty(property, value, MAX_PATH_LENGTH, PATTERN_PATH);
     }
 
+    /**
+     * @Description 检查父方法的正则匹配
+     * @Author      panda
+     * @param       property
+     * @param       value
+     * @Date        2019/3/19 16:36
+     * @return      void
+     **/
     protected static void checkMethodName(String property, String value) {
         checkProperty(property, value, MAX_LENGTH, PATTERN_METHOD_NAME);
     }
 
+    /**
+     * @Description 检查参数的校验检查
+     * @Author      panda
+     * @param       parameters
+     * @Date        2019/3/19 16:37
+     * @return      void
+     **/
     protected static void checkParameterName(Map<String, String> parameters) {
         if (CollectionUtils.isEmptyMap(parameters)) {
             return;
@@ -396,6 +514,8 @@ public abstract class AbstractConfig implements Serializable {
             }
         }
     }
+
+    //====================================扩展属性检验END=======================================
 
     protected static Set<String> getSubProperties(Map<String, String> properties, String prefix) {
         return properties.keySet().stream().filter(k -> k.contains(prefix)).map(k -> {
