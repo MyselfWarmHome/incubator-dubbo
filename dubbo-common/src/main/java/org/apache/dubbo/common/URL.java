@@ -68,6 +68,16 @@ import java.util.concurrent.ConcurrentHashMap;
  * for this case, url protocol = null, url host = home, url path = user1/router.js
  * </ul>
  *
+ * 所有配置最终都将转换为 Dubbo URL 表示，并由服务提供方生成，经注册中心传递给消费方
+ * protocol://username:password@host:port/path?key=value&key=value
+ *
+ *
+ * 通过 URL.buildString(...) 方法生成Dubbo的URL
+ *
+ * eg: dubbo://192.168.3.17:20880/com.alibaba.dubbo.demo.DemoService?anyhost=true&application=demo-provider
+ * &default.delay=-1&default.retries=0&default.service.filter=demoFilter&delay=-1&dubbo=2.0.0
+ * &generic=false&interface=com.alibaba.dubbo.demo.DemoService&methods=sayHello&pid=19031&side=provider&timestamp=1519651641799
+ *
  * @see java.net.URL
  * @see java.net.URI
  */
@@ -76,24 +86,44 @@ class URL implements Serializable {
 
     private static final long serialVersionUID = -1985165475234910535L;
 
+    /**
+     * 协议
+     */
     private final String protocol;
 
+    /**
+     * 用户名
+     */
     private final String username;
 
+    /**
+     * 密码
+     */
     private final String password;
 
-    // by default, host to registry
+    /**
+     * by default, host to registry
+     * 地址
+     */
     private final String host;
 
-    // by default, port to registry
+    /**
+     * by default, port to registry
+     * 端口
+     */
     private final int port;
 
+    /**
+     * 路径（服务名）
+     */
     private final String path;
 
+    /**
+     * 参数集合 通过 AbstractConfig.appendParameters(parameters, config, prefix) 方法生成。
+     */
     private final Map<String, String> parameters;
 
-    // ==== cache ====
-
+    // ==== 缓存相关，不参与序列化，并且要保证可见性 START====
     private volatile transient Map<String, Number> numbers;
 
     private volatile transient Map<String, URL> urls;
@@ -107,6 +137,8 @@ class URL implements Serializable {
     private volatile transient String parameter;
 
     private volatile transient String string;
+    // ==== 缓存相关，不参与序列化，并且要保证可见性 END====
+
 
     protected URL() {
         this.protocol = null;
