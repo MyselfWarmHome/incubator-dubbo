@@ -209,7 +209,7 @@ public abstract class AbstractConfig implements Serializable {
                         && method.getParameterTypes().length == 0
                         && method.getReturnType() == Map.class) {
                     Map<String, String> map = (Map<String, String>) method.invoke(config, new Object[0]);
-                    if (map != null && map.size() > 0) {
+                    if (CollectionUtils.isNotEmptyMap(map)) {
                         String pre = (prefix != null && prefix.length() > 0 ? prefix + "." : "");
                         for (Map.Entry<String, String> entry : map.entrySet()) {
                             parameters.put(pre + entry.getKey().replace('-', '.'), entry.getValue());
